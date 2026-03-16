@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 class ChatController extends Controller
 {
     /**
-     * Find or create a 1-to-1 conversation with the given user, then redirect to dashboard with that chat open.
+     * Find or create a 1-to-1 conversation with the given user, then redirect to chats with that conversation open.
      */
     public function start(User $user): RedirectResponse
     {
@@ -18,7 +18,7 @@ class ChatController extends Controller
         $me = Auth::user();
 
         if ($user->id === $me->id) {
-            return redirect()->route('dashboard');
+            return redirect()->route('chats');
         }
 
         $conversation = $me->conversations()
@@ -36,6 +36,6 @@ class ChatController extends Controller
             $conversation->users()->attach([$me->id, $user->id]);
         }
 
-        return redirect()->route('dashboard', ['conversation' => $conversation->id]);
+        return redirect()->route('chats', ['conversation' => $conversation->id]);
     }
 }

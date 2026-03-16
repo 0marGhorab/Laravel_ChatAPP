@@ -5,9 +5,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
 
-Route::view('dashboard', 'dashboard')
+Route::view('chats', 'dashboard')
     ->middleware(['auth', 'verified'])
-    ->name('dashboard');
+    ->name('chats');
 
 Route::view('profile', 'profile')
     ->middleware(['auth'])

@@ -120,6 +120,63 @@ class ChatPage extends Component
         $this->dispatch('$refresh');
     }
 
+    public function deleteMessage(int $messageId): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (! $user) {
+            return;
+        }
+
+        $message = Message::query()
+            ->where('id', $messageId)
+            ->whereHas('conversation.users', fn ($q) => $q->where('users.id', $user->id))
+            ->first();
+
+        if (! $message) {
+            return;
+        }
+
+        if ($message->sender_id !== $user->id) {
+            return;
+        }
+
+        $message->delete();
+    }
+
+    public function deleteConversation(int $conversationId): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (! $user) {
+            return;
+        }
+
+        $conversation = Conversation::query()
+            ->where('id', $conversationId)
+            ->whereHas('users', fn ($q) => $q->where('users.id', $user->id))
+            ->first();
+
+        if (! $conversation) {
+            return;
+        }
+
+        $conversation->delete();
+
+        if ($this->activeConversationId === $conversationId) {
+            $this->activeConversationId = null;
+
+            $next = $this->conversations()->first();
+            if ($next) {
+                $this->activeConversationId = $next->id;
+            }
+        }
+
+        $this->showListOnMobile = true;
+    }
+
     public function render()
     {
         return view('livewire.chat-page', [
