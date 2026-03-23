@@ -1,0 +1,9 @@
+/* Circular crop mask in the modal (output is still square; avatar component rounds it) */
+#profile-photo-crop-modal .cropper-crop-box,
+#profile-photo-crop-modal .cropper-view-box {
+    border-radius: 50%;
+}
+
+#profile-photo-crop-modal .cropper-face {
+    border-radius: 50%;
+}

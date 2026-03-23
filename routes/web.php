@@ -17,6 +17,10 @@ Route::view('users', 'users.index')
     ->middleware(['auth'])
     ->name('users.index');
 
+Route::view('groups/create', 'groups.create')
+    ->middleware(['auth', 'verified'])
+    ->name('groups.create');
+
 Route::get('chats/start/{user}', [ChatController::class, 'start'])
     ->middleware(['auth'])
     ->name('chats.start');

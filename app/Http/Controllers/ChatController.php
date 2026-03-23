@@ -18,7 +18,7 @@ class ChatController extends Controller
         $me = Auth::user();
 
         if ($user->id === $me->id) {
-            return redirect()->route('chats');
+            return redirect()->to(route('chats', [], false));
         }
 
         $conversation = $me->conversations()
@@ -33,9 +33,13 @@ class ChatController extends Controller
                 'is_group' => false,
                 'created_by' => $me->id,
             ]);
-            $conversation->users()->attach([$me->id, $user->id]);
+            $now = now();
+            $conversation->users()->attach([
+                $me->id => ['last_read_at' => $now],
+                $user->id => ['last_read_at' => $now],
+            ]);
         }
 
-        return redirect()->route('chats', ['conversation' => $conversation->id]);
+        return redirect()->to(route('chats', ['conversation' => $conversation->id], false));
     }
 }

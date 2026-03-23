@@ -20,8 +20,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Behind ngrok / reverse proxies, force HTTPS so route() and url() generate https:// links
-        if ($this->app->environment('local')) {
+        // Only force HTTPS when APP_URL is https (e.g. ngrok). Forcing https on http://127.0.0.1:8000 breaks artisan serve.
+        $appUrl = (string) config('app.url', '');
+        if ($appUrl !== '' && str_starts_with($appUrl, 'https://')) {
             URL::forceScheme('https');
         }
     }

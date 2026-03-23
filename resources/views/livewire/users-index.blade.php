@@ -13,20 +13,22 @@
 
     <div class="divide-y divide-gray-100 dark:divide-gray-800">
         @forelse ($users as $user)
-            <div class="px-4 py-3 flex items-center justify-between text-sm">
-                <div>
-                    <div class="font-medium text-gray-900 dark:text-gray-100">
+            <div class="px-4 py-3 flex items-center justify-between gap-3 text-sm">
+                <div class="flex items-center gap-3 min-w-0">
+                    <x-user-avatar :user="$user" class="w-10 h-10" />
+                    <div class="min-w-0">
+                    <div class="font-medium text-gray-900 dark:text-gray-100 truncate">
                         {{ $user->username }}
                     </div>
-                    <div class="text-xs text-gray-500">
+                    <div class="text-xs text-gray-500 truncate">
                         {{ $user->email }}
+                    </div>
                     </div>
                 </div>
                 <div>
                     @if ($user->id !== auth()->id())
                         <a
-                            href="{{ '/chats/start/'.$user->id }}"
-                            wire:navigate
+                            href="{{ route('chats.start', $user) }}"
                             class="inline-flex items-center px-4 py-2 bg-primary border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition duration-200"
                         >
                             Start Chat
