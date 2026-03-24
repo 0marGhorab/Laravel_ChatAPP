@@ -16,6 +16,8 @@ new class extends Component
 
     public string $email = '';
 
+    public string $bio = '';
+
     public $photo = null;
 
     /**
@@ -27,6 +29,7 @@ new class extends Component
 
         $this->username = (string) ($user->username ?? '');
         $this->email = (string) ($user->email ?? '');
+        $this->bio = (string) ($user->bio ?? '');
     }
 
     /**
@@ -76,6 +79,7 @@ new class extends Component
         $validated = $this->validate([
             'username' => ['required', 'string', 'max:255', Rule::unique(User::class, 'username')->ignore($user->id)],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
+            'bio' => ['nullable', 'string', 'max:1000'],
             'photo' => ['nullable', 'image', 'max:2048'],
         ]);
 
@@ -90,6 +94,7 @@ new class extends Component
         $user->fill([
             'username' => $validated['username'],
             'email' => $validated['email'],
+            'bio' => $validated['bio'] ?? null,
         ]);
 
         if ($user->isDirty('email')) {
@@ -297,6 +302,20 @@ new class extends Component
                     @endif
                 </div>
             @endif
+        </div>
+
+        <div>
+            <x-input-label for="bio" :value="__('Bio')" />
+            <textarea
+                wire:model="bio"
+                id="bio"
+                name="bio"
+                rows="4"
+                maxlength="1000"
+                class="mt-1 block w-full border-gray-300 focus:border-primary focus:ring-primary rounded-md shadow-sm"
+                placeholder="{{ __('Tell people a little about yourself...') }}"
+            ></textarea>
+            <x-input-error class="mt-2" :messages="$errors->get('bio')" />
         </div>
 
         <div class="flex items-center gap-4">

@@ -25,6 +25,10 @@ class ChatPage extends Component
 
     public $groupPhoto = null;
 
+    public $voiceNote = null;
+
+    public string $groupTitle = '';
+
     public function mount(): void
     {
         $conversationId = request()->query('conversation');
@@ -32,6 +36,7 @@ class ChatPage extends Component
             $this->activeConversationId = (int) $conversationId;
             $this->showListOnMobile = false;
             $this->markConversationAsRead($this->activeConversationId);
+            $this->syncGroupTitleFromActiveConversation();
 
             return;
         }
@@ -41,7 +46,23 @@ class ChatPage extends Component
             $this->activeConversationId = $firstConversation->id;
             $this->showListOnMobile = false;
             $this->markConversationAsRead($this->activeConversationId);
+            $this->syncGroupTitleFromActiveConversation();
         }
+    }
+
+    protected function syncGroupTitleFromActiveConversation(): void
+    {
+        if (! $this->activeConversationId) {
+            $this->groupTitle = '';
+
+            return;
+        }
+
+        $conversation = Conversation::query()
+            ->where('id', $this->activeConversationId)
+            ->first();
+
+        $this->groupTitle = (string) ($conversation?->title ?? '');
     }
 
     protected function conversationBelongsToUser(int $conversationId): bool
@@ -112,7 +133,8 @@ class ChatPage extends Component
 
         if ($belongsToUser) {
             $this->activeConversationId = $conversationId;
-            $this->reset('messageBody', 'groupPhoto');
+            $this->reset('messageBody', 'groupPhoto', 'voiceNote');
+            $this->syncGroupTitleFromActiveConversation();
             $this->showListOnMobile = false;
             $this->markConversationAsRead($conversationId);
         }
@@ -206,6 +228,7 @@ class ChatPage extends Component
         $this->reset('groupPhoto');
 
         $this->dispatch('$refresh');
+        $this->dispatch('toast', message: __('Group photo updated.'));
     }
 
     public function removeGroupPhoto(): void
@@ -230,12 +253,48 @@ class ChatPage extends Component
         $conversation->forceFill(['avatar_path' => null])->save();
 
         $this->dispatch('$refresh');
+        $this->dispatch('toast', message: __('Group photo removed.'));
+    }
+
+    public function saveGroupTitle(): void
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (! $user || ! $this->activeConversationId) {
+            return;
+        }
+
+        $conversation = Conversation::query()
+            ->where('id', $this->activeConversationId)
+            ->whereHas('users', fn ($q) => $q->where('users.id', $user->id))
+            ->first();
+
+        if (! $conversation || ! $conversation->is_group || ! $user->canManageGroupPhoto($conversation)) {
+            $this->addError('groupTitle', __('You cannot rename this group.'));
+
+            return;
+        }
+
+        $validated = $this->validate([
+            'groupTitle' => ['required', 'string', 'max:255'],
+        ]);
+
+        $conversation->forceFill([
+            'title' => trim($validated['groupTitle']),
+        ])->save();
+
+        $this->groupTitle = $conversation->title ?? '';
+
+        $this->dispatch('$refresh');
+        $this->dispatch('toast', message: __('Group name updated.'));
     }
 
     public function sendMessage(): void
     {
         $this->validate([
-            'messageBody' => ['required', 'string', 'max:1000'],
+            'messageBody' => ['nullable', 'string', 'max:1000', 'required_without:voiceNote'],
+            'voiceNote' => ['nullable', 'file', 'max:10240', 'required_without:messageBody', 'mimes:webm,mp3,mp4,m4a,aac,wav,ogg,oga'],
         ]);
 
         if (! $this->activeConversationId) {
@@ -246,19 +305,36 @@ class ChatPage extends Component
             ->whereHas('users', fn ($q) => $q->where('users.id', Auth::id()))
             ->firstOrFail();
 
-        $message = Message::create([
+        $audioPath = null;
+
+        if ($this->voiceNote) {
+            $audioPath = $this->voiceNote->store('voice-notes', 'public');
+        }
+
+        $body = trim($this->messageBody);
+
+        if ($body === '' && ! $audioPath) {
+            $this->addError('messageBody', __('Type a message or attach a voice note.'));
+            $this->addError('voiceNote', __('Attach a voice note or type a message.'));
+
+            return;
+        }
+
+        Message::create([
             'conversation_id' => $conversation->id,
             'sender_id' => Auth::id(),
-            'body' => $this->messageBody,
+            'body' => $body !== '' ? $body : null,
+            'audio_path' => $audioPath,
         ]);
 
         $conversation->forceFill([
             'last_message_at' => now(),
         ])->save();
 
-        $this->reset('messageBody');
+        $this->reset('messageBody', 'voiceNote');
 
         $this->dispatch('$refresh');
+        $this->dispatch('toast', message: __('Message sent.'));
     }
 
     public function deleteMessage(int $messageId): void
@@ -284,6 +360,11 @@ class ChatPage extends Component
         }
 
         $conversationId = $message->conversation_id;
+
+        if ($message->audio_path) {
+            Storage::disk('public')->delete($message->audio_path);
+        }
+
         $message->delete();
 
         $conversation = Conversation::query()->find($conversationId);
@@ -293,6 +374,7 @@ class ChatPage extends Component
         }
 
         $this->dispatch('$refresh');
+        $this->dispatch('toast', message: __('Message deleted.'));
     }
 
     /**
@@ -305,12 +387,14 @@ class ChatPage extends Component
         }
 
         $this->activeConversationId = null;
-        $this->reset('messageBody', 'groupPhoto');
+        $this->reset('messageBody', 'groupPhoto', 'voiceNote');
+        $this->groupTitle = '';
 
         $next = $this->conversations()->first();
         if ($next) {
             $this->activeConversationId = $next->id;
             $this->markConversationAsRead($this->activeConversationId);
+            $this->syncGroupTitleFromActiveConversation();
         }
 
         $this->showListOnMobile = true;
@@ -337,6 +421,7 @@ class ChatPage extends Component
         $conversation->delete();
 
         $this->afterConversationRemoved($conversationId);
+        $this->dispatch('toast', message: __('Conversation deleted.'));
     }
 
     public function render()

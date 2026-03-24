@@ -10,6 +10,7 @@ class Message extends Model
         'conversation_id',
         'sender_id',
         'body',
+        'audio_path',
     ];
 
     public function conversation()

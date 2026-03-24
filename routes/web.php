@@ -1,9 +1,26 @@
 <?php
 
 use App\Http\Controllers\ChatController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/login');
+Route::get('/', function () {
+    if (! Auth::check()) {
+        return redirect()->route('login');
+    }
+
+    /** @var \App\Models\User|null $user */
+    $user = Auth::user();
+
+    if (! $user || ! $user->hasVerifiedEmail()) {
+        return redirect()->route('verification.notice');
+    }
+
+    return redirect()->route('chats');
+});
+
+// Keep Breeze/Fortify-style dashboard redirects compatible with this app.
+Route::redirect('/dashboard', '/chats')->name('dashboard');
 
 Route::view('chats', 'dashboard')
     ->middleware(['auth', 'verified'])
